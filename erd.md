@@ -1,12 +1,12 @@
 # Entity-Relationship Diagram
 
-This diagram illustrates the relationships between the core database models in the application.
+This diagram illustrates the relationships between the core database models in the application. The `CONTEXT_SNIPPETS` table has a logical polymorphic relationship to other tables (like `COMPANIES` or `PEOPLE`) via the `entity_id` and `entity_type` fields.
 
-```mermaid
+````mermaid
 erDiagram
     CAMPAIGNS ||--o{ COMPANIES : "has one or more"
     COMPANIES ||--o{ PEOPLE : "employs one or more"
-    COMPANIES ||--o{ CONTEXT_SNIPPETS : "can have many"
+    CONTEXT_SNIPPETS }|..|| COMPANIES : "logically relates to"
 
     CONTEXT_SNIPPETS ||--o{ SEARCH_LOGS : "is generated from"
 
@@ -37,7 +37,7 @@ erDiagram
     CONTEXT_SNIPPETS {
         string id PK "UUID"
         string entity_type "'company' or 'person'"
-        string entity_id FK "References COMPANIES"
+        string entity_id "UUID of the related entity"
         string snippet_type
         json payload "Agent's structured output"
         json source_urls
@@ -51,5 +51,5 @@ erDiagram
         string query
         json top_results "URLs and snippets"
         datetime created_at
-    }
-```
+    }```
+````
