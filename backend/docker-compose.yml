@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  # --- PostgreSQL Database ---
+  postgres:
+    image: postgres:14-alpine
+    container_name: alpha_db
+    ports:
+      - "5432:5432" # Expose DB port to host for local tools
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=alpha
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d alpha"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Redis for BullMQ Queue ---
+  redis:
+    image: redis:7-alpine
+    container_name: alpha_redis
+    ports:
+      - "6379:6379" # Expose Redis port to host
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "localhost", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Backend Application Service ---
+  # This service builds the backend Dockerfile and runs the entrypoint script.
+  # The script handles migrations, seeding, and starting both the API server
+  # and the BullMQ worker.
+  backend:
+    container_name: alpha_backend
+    build:
+      context: ./backend # Path to the backend directory
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000" # Expose API port to host
+    environment:
+      # Use service names for inter-container communication
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/alpha
+      - REDIS_URL=redis://redis:6379
+      - PORT=4000
+      - NODE_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  # This named volume persists database data across `docker-compose down/up` cycles
+  postgres_data:

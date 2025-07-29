@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Campaign {
+  id        String    @id @default(uuid())
+  name      String
+  status    String    @default("draft")
+  createdAt DateTime  @default(now()) @map("created_at")
+  companies Company[]
+
+  @@map("campaigns")
+}
+
+model Company {
+  id         String   @id @default(uuid())
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId String   @map("campaign_id")
+  name       String?
+  domain     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  people     Person[]
+  
+  // THIS FIELD IS NOW REMOVED to match the change on ContextSnippet
+  // snippets   ContextSnippet[] 
+
+  @@map("companies")
+}
+
+model Person {
+  id        String   @id @default(uuid())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String   @map("company_id")
+  fullName  String?  @map("full_name")
+  email     String?  @unique
+  title     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("people")
+}
+
+model ContextSnippet {
+  id           String      @id @default(uuid())
+  entityType   String      @map("entity_type")
+  entityId     String      @map("entity_id")
+  snippetType  String      @default("research") @map("snippet_type")
+  payload      Json
+  sourceUrls   Json        @map("source_urls")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  searchLogs   SearchLog[]
+
+  @@map("context_snippets")
+}
+
+model SearchLog {
+  id               String         @id @default(uuid())
+  contextSnippet   ContextSnippet @relation(fields: [contextSnippetId], references: [id], onDelete: Cascade)
+  contextSnippetId String         @map("context_snippet_id")
+  iteration        Int
+  query            String
+  topResults       Json           @map("top_results")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@map("search_logs")
+}

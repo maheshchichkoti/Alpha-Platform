@@ -1,0 +1,73 @@
+version: "3.8"
+
+services:
+  # Database Service (PostgreSQL)
+  db:
+    image: postgres:14-alpine
+    container_name: alpha_db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=alpha
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Expose to host for local tools if needed
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d alpha"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # In-Memory Store (Redis)
+  redis:
+    image: redis:7-alpine
+    container_name: alpha_redis
+    restart: always
+    ports:
+      - "6379:6379" # Expose to host
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API & Worker Service
+  backend:
+    build:
+      context: ./backend
+    container_name: alpha_backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      # Use service names for container-to-container communication
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/alpha
+      - REDIS_URL=redis://redis:6379
+      - PORT=4000
+      - NODE_ENV=production
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+    container_name: alpha_frontend
+    restart: always
+    ports:
+      # CORRECTED: Maps host port 3000 to the container's exposed port 3000
+      - "3000:3000"
+    environment:
+      # ADDED: Passes the backend URL to the Vite build environment
+      - VITE_API_URL=http://localhost:4000
+    depends_on:
+      - backend
+
+# Named volume to persist database data
+volumes:
+  postgres_data:
